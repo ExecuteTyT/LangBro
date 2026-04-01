@@ -6,7 +6,7 @@ from aiogram.enums import ParseMode
 
 from bot.config import settings
 from bot.db.engine import async_session_factory
-from bot.handlers import start, challenge, report, stats, quiz, pronounce, coach
+from bot.handlers import start, challenge, report, stats, quiz, pronounce, coach, admin, profile
 from bot.middlewares.db_session import DbSessionMiddleware
 from bot.middlewares.user_registration import UserRegistrationMiddleware
 from bot.middlewares.challenge_context import ChallengeContextMiddleware
@@ -42,5 +42,7 @@ def create_dispatcher() -> Dispatcher:
     dp.include_router(quiz.router)
     dp.include_router(pronounce.router)
     dp.include_router(coach.router)
+    dp.include_router(admin.router)
+    dp.include_router(profile.router)
 
     return dp

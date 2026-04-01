@@ -28,6 +28,13 @@ async def cmd_report(
         )
         return
 
+    if challenge.status == "paused":
+        await message.answer(
+            f"⏸ Челлендж <b>{challenge.title}</b> на паузе.\n"
+            "Отчёты временно не принимаются. Свяжись с админом."
+        )
+        return
+
     # Extract report text
     args = message.text.split(maxsplit=1)
     if len(args) < 2 or not args[1].strip():

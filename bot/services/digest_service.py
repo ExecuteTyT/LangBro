@@ -50,6 +50,15 @@ class DigestService:
         if not members:
             return None
 
+        # Separate vacation members
+        active_members = []
+        vacation_members = []
+        for m in members:
+            if m.vacation_until and m.vacation_until >= today:
+                vacation_members.append(m)
+            else:
+                active_members.append(m)
+
         total_members = len(members)
         reports = await report_repo.get_reports_for_date(challenge.id, today)
         reported_ids = {r.user_challenge_id for r in reports}
@@ -87,9 +96,9 @@ class DigestService:
                 name = m.user.display_name or m.user.first_name
                 streak_parts.append(f"{name}: {m.current_streak} дней")
 
-        # Missing members
+        # Missing members (exclude vacation)
         missing = []
-        for m in members:
+        for m in active_members:
             if m.id not in reported_ids:
                 await self.session.refresh(m, ["user"])
                 u = m.user
@@ -97,6 +106,14 @@ class DigestService:
                     missing.append(f"@{u.username}")
                 else:
                     missing.append(u.display_name or u.first_name)
+
+        # Vacation members
+        vacation_names = []
+        for m in vacation_members:
+            await self.session.refresh(m, ["user"])
+            name = m.user.display_name or m.user.first_name
+            remaining = (m.vacation_until - today).days
+            vacation_names.append(f"{name} ({remaining} дн.)")
 
         # Fun fact from LLM
         fun_fact = ""
@@ -133,6 +150,9 @@ class DigestService:
         if missing:
             parts.append(f"😴 Не отчитались: {', '.join(missing)}\n")
 
+        if vacation_names:
+            parts.append(f"🏖 На каникулах: {', '.join(vacation_names)}\n")
+
         # Group stats
         hours = total_minutes // 60
         mins = total_minutes % 60
@@ -159,6 +179,9 @@ class DigestService:
 
         missing = []
         for m in members:
+            # Skip vacation users — don't tag them
+            if m.vacation_until and m.vacation_until >= today:
+                continue
             if m.id not in reported_ids:
                 await self.session.refresh(m, ["user"])
                 u = m.user

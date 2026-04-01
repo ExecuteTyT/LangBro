@@ -1,4 +1,4 @@
-"""Scheduled jobs: daily_digest, reminder, wotd, quiz, battles, weekly digest."""
+"""Scheduled jobs: daily_digest, reminder, wotd, quiz, battles, weekly digest, vacation reset."""
 
 import logging
 import random
@@ -265,3 +265,20 @@ async def weekly_digest_job(
             except Exception as e:
                 logger.exception("Weekly digest failed for challenge %s: %s", challenge.id, e)
         await session.commit()
+
+
+async def vacation_reset_job(session_factory: async_sessionmaker) -> None:
+    """Monthly: reset vacation_days_used for all participants on the 1st."""
+    logger.info("Running vacation_reset_job")
+    from bot.db.repositories.challenge_repo import ChallengeRepository
+
+    async with session_factory() as session:
+        repo = ChallengeRepository(session)
+        all_ucs = await repo.get_all_active_user_challenges()
+        count = 0
+        for uc in all_ucs:
+            if uc.vacation_days_used > 0:
+                uc.vacation_days_used = 0
+                count += 1
+        await session.commit()
+        logger.info("Vacation reset: cleared %d user records", count)
