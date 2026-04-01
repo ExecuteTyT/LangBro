@@ -3,6 +3,8 @@ import logging
 
 from bot.app import create_bot, create_dispatcher
 from bot.config import settings
+from bot.db.engine import async_session_factory
+from bot.scheduler.setup import setup_scheduler
 
 
 def main() -> None:
@@ -15,8 +17,13 @@ def main() -> None:
     bot = create_bot()
     dp = create_dispatcher()
 
+    scheduler = setup_scheduler(bot, async_session_factory)
+
     logger.info("Starting LangBro bot...")
-    asyncio.run(dp.start_polling(bot))
+    try:
+        asyncio.run(dp.start_polling(bot))
+    finally:
+        scheduler.shutdown()
 
 
 if __name__ == "__main__":
