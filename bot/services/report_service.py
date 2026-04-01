@@ -56,12 +56,18 @@ class ReportService:
         today = datetime.now(timezone.utc).date()
         name = user.display_name or user.first_name
 
-        # 1. Parse report via LLM
+        # 1. Look up today's Word of the Day
+        from bot.db.repositories.wotd_repo import WotdRepository
+        wotd_repo = WotdRepository(self.session)
+        today_wotd = await wotd_repo.get_today_wotd(challenge.id, today)
+        word_of_the_day = today_wotd.word if today_wotd else "нет"
+
+        # 2. Parse report via LLM
         prompt = REPORT_PARSE_USER.format(
             display_name=name,
             english_level=user.english_level,
             raw_text=raw_text,
-            word_of_the_day="нет",  # TODO: look up today's WotD
+            word_of_the_day=word_of_the_day,
         )
         parsed_data = await self.gemini.call_json(
             prompt=prompt,
@@ -72,13 +78,19 @@ class ReportService:
         )
         parsed = ReportParseResult.model_validate(parsed_data)
 
-        # 2. Calculate points
+        # 3. Calculate points
         multipliers = challenge.scoring_multipliers or None
         total_points, per_activity_pts = calculate_report_points(
             parsed.activities, multipliers
         )
 
-        # 3. Check for existing report (overwrite)
+        # 3a. WotD bonus
+        wotd_bonus = 0
+        if parsed.word_of_day_used and today_wotd:
+            wotd_bonus = (challenge.scoring_multipliers or {}).get("wotd_bonus", 20)
+            total_points += wotd_bonus
+
+        # 4. Check for existing report (overwrite)
         is_rewrite = False
         existing = await self.repo.get_today_report(uc.id, today)
         if existing:
@@ -95,6 +107,7 @@ class ReportService:
             report.message_id = message_id
             report.source = source
             report.wotd_used = parsed.word_of_day_used
+            report.wotd_bonus_points = wotd_bonus
         else:
             report = DailyReport(
                 user_challenge_id=uc.id,
@@ -106,6 +119,7 @@ class ReportService:
                 total_points=total_points,
                 summary=parsed.raw_summary,
                 wotd_used=parsed.word_of_day_used,
+                wotd_bonus_points=wotd_bonus,
                 llm_model="gemini-2.5-flash",
             )
             await self.repo.save_report(report)
