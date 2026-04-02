@@ -8,6 +8,7 @@ from bot.config import settings
 from bot.db.engine import async_session_factory
 from bot.handlers import start, challenge, report, stats, quiz, pronounce, coach, admin, profile
 from bot.middlewares.db_session import DbSessionMiddleware
+from bot.middlewares.metrics import MetricsMiddleware
 from bot.middlewares.user_registration import UserRegistrationMiddleware
 from bot.middlewares.challenge_context import ChallengeContextMiddleware
 
@@ -24,7 +25,10 @@ def create_bot() -> Bot:
 def create_dispatcher() -> Dispatcher:
     dp = Dispatcher()
 
-    # Register middlewares (order matters: db → user → challenge)
+    # Register middlewares (order matters: metrics → db → user → challenge)
+    dp.message.middleware(MetricsMiddleware())
+    dp.callback_query.middleware(MetricsMiddleware())
+
     dp.message.middleware(DbSessionMiddleware(async_session_factory))
     dp.callback_query.middleware(DbSessionMiddleware(async_session_factory))
 

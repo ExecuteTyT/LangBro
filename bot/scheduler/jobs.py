@@ -2,7 +2,9 @@
 
 import logging
 import random
+import time as _time
 from datetime import datetime, timedelta, timezone
+from functools import wraps
 
 from aiogram import Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -11,9 +13,30 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from bot.db.models import Challenge
 from bot.llm.client import GeminiClient
+from bot.metrics import SCHEDULER_JOB_DURATION, SCHEDULER_JOB_RUNS
 from bot.services.digest_service import DigestService
 
 logger = logging.getLogger(__name__)
+
+
+def _track_job(job_name: str):
+    """Decorator that tracks scheduler job execution in Prometheus."""
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            start = _time.monotonic()
+            try:
+                result = await func(*args, **kwargs)
+                SCHEDULER_JOB_RUNS.labels(job=job_name, status="success").inc()
+                return result
+            except Exception:
+                SCHEDULER_JOB_RUNS.labels(job=job_name, status="error").inc()
+                raise
+            finally:
+                elapsed = _time.monotonic() - start
+                SCHEDULER_JOB_DURATION.labels(job=job_name).observe(elapsed)
+        return wrapper
+    return decorator
 
 
 async def _iter_active_challenges(session_factory, feature_key=None):
@@ -36,6 +59,7 @@ async def _iter_active_challenges(session_factory, feature_key=None):
         await session.commit()
 
 
+@_track_job("daily_digest")
 async def daily_digest_job(bot: Bot, session_factory: async_sessionmaker) -> None:
     logger.info("Running daily_digest_job")
     async with session_factory() as session:
@@ -61,6 +85,7 @@ async def daily_digest_job(bot: Bot, session_factory: async_sessionmaker) -> Non
         await session.commit()
 
 
+@_track_job("reminder")
 async def reminder_job(bot: Bot, session_factory: async_sessionmaker) -> None:
     logger.info("Running reminder_job")
     async with session_factory() as session:
@@ -86,6 +111,7 @@ async def reminder_job(bot: Bot, session_factory: async_sessionmaker) -> None:
         await session.commit()
 
 
+@_track_job("wotd")
 async def wotd_job(bot: Bot, session_factory: async_sessionmaker) -> None:
     """Send Word of the Day to all active challenges."""
     logger.info("Running wotd_job")
@@ -112,6 +138,7 @@ async def wotd_job(bot: Bot, session_factory: async_sessionmaker) -> None:
         await session.commit()
 
 
+@_track_job("quiz_schedule")
 async def quiz_schedule_job(
     bot: Bot,
     session_factory: async_sessionmaker,
@@ -132,6 +159,7 @@ async def quiz_schedule_job(
     )
 
 
+@_track_job("quiz")
 async def quiz_job(
     bot: Bot,
     session_factory: async_sessionmaker,
@@ -177,6 +205,7 @@ async def quiz_job(
         await session.commit()
 
 
+@_track_job("quiz_close")
 async def quiz_close_job(
     bot: Bot, session_factory: async_sessionmaker, quiz_id: int
 ) -> None:
@@ -191,6 +220,7 @@ async def quiz_close_job(
         await session.commit()
 
 
+@_track_job("battle_create")
 async def battle_create_job(
     bot: Bot, session_factory: async_sessionmaker
 ) -> None:
@@ -216,6 +246,7 @@ async def battle_create_job(
         await session.commit()
 
 
+@_track_job("battle_resolve")
 async def battle_resolve_job(
     bot: Bot, session_factory: async_sessionmaker
 ) -> None:
@@ -241,6 +272,7 @@ async def battle_resolve_job(
         await session.commit()
 
 
+@_track_job("weekly_digest")
 async def weekly_digest_job(
     bot: Bot, session_factory: async_sessionmaker
 ) -> None:
@@ -267,6 +299,7 @@ async def weekly_digest_job(
         await session.commit()
 
 
+@_track_job("vacation_reset")
 async def vacation_reset_job(session_factory: async_sessionmaker) -> None:
     """Monthly: reset vacation_days_used for all participants on the 1st."""
     logger.info("Running vacation_reset_job")

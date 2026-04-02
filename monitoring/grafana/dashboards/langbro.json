@@ -1,0 +1,240 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "title": "Bot Overview",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "collapsed": false
+    },
+    {
+      "title": "Messages / sec",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 1 },
+      "targets": [
+        {
+          "expr": "rate(langbro_telegram_messages_total[5m])",
+          "legendFormat": "{{ chat_type }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "reqps" }
+      }
+    },
+    {
+      "title": "Commands / min",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 1 },
+      "targets": [
+        {
+          "expr": "rate(langbro_telegram_commands_total[5m]) * 60",
+          "legendFormat": "{{ command }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "cpm" }
+      }
+    },
+    {
+      "title": "Callback Queries / min",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 1 },
+      "targets": [
+        {
+          "expr": "rate(langbro_telegram_callbacks_total[5m]) * 60"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "cpm" }
+      }
+    },
+    {
+      "title": "LLM",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "collapsed": false
+    },
+    {
+      "title": "LLM Requests / min",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
+      "targets": [
+        {
+          "expr": "rate(langbro_llm_requests_total[5m]) * 60",
+          "legendFormat": "{{ feature }} ({{ status }})"
+        }
+      ]
+    },
+    {
+      "title": "LLM Latency (p50, p90, p99)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, rate(langbro_llm_latency_seconds_bucket[5m]))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.9, rate(langbro_llm_latency_seconds_bucket[5m]))",
+          "legendFormat": "p90"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(langbro_llm_latency_seconds_bucket[5m]))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      }
+    },
+    {
+      "title": "LLM Tokens / min (input vs output)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+      "targets": [
+        {
+          "expr": "sum(rate(langbro_llm_tokens_input_total[5m])) * 60",
+          "legendFormat": "Input tokens"
+        },
+        {
+          "expr": "sum(rate(langbro_llm_tokens_output_total[5m])) * 60",
+          "legendFormat": "Output tokens"
+        }
+      ]
+    },
+    {
+      "title": "LLM Errors / hour",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 18 },
+      "targets": [
+        {
+          "expr": "sum(rate(langbro_llm_requests_total{status=\"error\"}[5m])) * 3600",
+          "legendFormat": "Errors / hour"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "red" }
+        }
+      }
+    },
+    {
+      "title": "LLM Semaphore Queue",
+      "type": "gauge",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 18 },
+      "targets": [
+        {
+          "expr": "langbro_llm_semaphore_waiting"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "max": 10,
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 8 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "title": "Scheduler Jobs",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
+      "collapsed": false
+    },
+    {
+      "title": "Job Runs (success vs error)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 27 },
+      "targets": [
+        {
+          "expr": "increase(langbro_scheduler_job_runs_total[1h])",
+          "legendFormat": "{{ job }} ({{ status }})"
+        }
+      ]
+    },
+    {
+      "title": "Job Duration (p95)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 27 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(langbro_scheduler_job_duration_seconds_bucket[1h]))",
+          "legendFormat": "{{ job }}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      }
+    },
+    {
+      "title": "Engagement",
+      "type": "row",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 35 },
+      "collapsed": false
+    },
+    {
+      "title": "Reports Processed / hour",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 36 },
+      "targets": [
+        {
+          "expr": "sum(rate(langbro_reports_processed_total[5m])) * 3600",
+          "legendFormat": "Reports / hour"
+        }
+      ]
+    },
+    {
+      "title": "Report Points Distribution",
+      "type": "histogram",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 36 },
+      "targets": [
+        {
+          "expr": "langbro_report_points_bucket"
+        }
+      ]
+    },
+    {
+      "title": "Quiz Answers (correct vs wrong)",
+      "type": "piechart",
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 36 },
+      "targets": [
+        {
+          "expr": "langbro_quiz_answers_total",
+          "legendFormat": "{{ correct }}"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["langbro", "telegram", "bot"],
+  "templating": { "list": [] },
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": {},
+  "timezone": "Europe/Moscow",
+  "title": "LangBro Bot Dashboard",
+  "uid": "langbro-main",
+  "version": 1
+}
