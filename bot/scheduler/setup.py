@@ -12,6 +12,7 @@ from bot.scheduler.jobs import (
     daily_digest_job,
     quiz_schedule_job,
     reminder_job,
+    vacation_reset_job,
     weekly_digest_job,
     wotd_job,
 )
@@ -75,6 +76,13 @@ def setup_scheduler(
         weekly_digest_job, "cron", day_of_week="sun", hour=12, minute=0,
         kwargs=common,
         id="weekly_digest", replace_existing=True,
+    )
+
+    # Vacation reset — 1st of each month at 00:00 MSK
+    scheduler.add_job(
+        vacation_reset_job, "cron", day=1, hour=0, minute=0,
+        kwargs={"session_factory": session_factory},
+        id="vacation_reset", replace_existing=True,
     )
 
     scheduler.start()
