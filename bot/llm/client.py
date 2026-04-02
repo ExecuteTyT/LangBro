@@ -9,6 +9,13 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 import google.generativeai as genai
 
 from bot.config import settings
+from bot.metrics import (
+    LLM_LATENCY,
+    LLM_REQUESTS,
+    LLM_SEMAPHORE_QUEUE,
+    LLM_TOKENS_INPUT,
+    LLM_TOKENS_OUTPUT,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +60,9 @@ class GeminiClient:
         Returns:
             The model's text response.
         """
+        LLM_SEMAPHORE_QUEUE.inc()
         async with _semaphore:
+            LLM_SEMAPHORE_QUEUE.dec()
             start = time.monotonic()
             error_text = None
             input_tokens = 0
@@ -94,6 +103,14 @@ class GeminiClient:
 
             finally:
                 latency_ms = int((time.monotonic() - start) * 1000)
+                latency_sec = latency_ms / 1000.0
+                status = "error" if error_text else "success"
+                LLM_REQUESTS.labels(feature=feature, status=status).inc()
+                LLM_LATENCY.labels(feature=feature).observe(latency_sec)
+                if input_tokens:
+                    LLM_TOKENS_INPUT.labels(feature=feature).inc(input_tokens)
+                if output_tokens:
+                    LLM_TOKENS_OUTPUT.labels(feature=feature).inc(output_tokens)
                 await self._log_usage(
                     feature=feature,
                     input_tokens=input_tokens,

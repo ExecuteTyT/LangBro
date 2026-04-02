@@ -1,0 +1,14 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "langbro-bot"
+    static_configs:
+      - targets: ["bot:9090"]
+    metrics_path: /metrics
+
+  - job_name: "langbro-admin"
+    static_configs:
+      - targets: ["admin:8000"]
+    metrics_path: /metrics
